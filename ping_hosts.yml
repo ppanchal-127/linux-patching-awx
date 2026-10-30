@@ -1,7 +1,21 @@
 ---
-- name: Ping hosts to check connectivity
+- name: Test network reachability and print OK
   hosts: all
   gather_facts: false
   tasks:
-    - name: Ping the host
-      ansible.builtin.ping:
+    - name: Ping the host from the local machine
+      delegate_to: localhost
+      ansible.builtin.command: ping -c 1 -W 2 {{ inventory_hostname }}
+      register: ping_result
+      ignore_errors: true
+      changed_when: false
+      
+    - name: Show reachability status
+      ansible.builtin.debug:
+        msg: "OK - {{ inventory_hostname }} is reachable"
+      when: ping_result.rc == 0
+
+    - name: Show failure status
+      ansible.builtin.debug:
+        msg: "FAILED - {{ inventory_hostname }} is unreachable"
+      when: ping_result.rc != 0
