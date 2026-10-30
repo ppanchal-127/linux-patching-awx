@@ -5,37 +5,65 @@
   tasks:
 
     # ==========================================
-    # Debian / Ubuntu Patching
+    # Debian / Ubuntu (APT)
     # ==========================================
-    - name: Debian - Upgrade all packages
+    - name: APT - Update cache and upgrade all packages
       apt:
         update_cache: yes
         upgrade: dist
         autoremove: yes
         autoclean: yes
-      when: ansible_os_family == "Debian"
+      when: ansible_pkg_mgr == "apt"
 
-    - name: Debian - Check if reboot is required
+    - name: APT - Check if reboot is required
       stat:
         path: /var/run/reboot-required
       register: debian_reboot
-      when: ansible_os_family == "Debian"
+      when: ansible_pkg_mgr == "apt"
 
     # ==========================================
-    # RHEL / CentOS / Alma / Rocky Patching
+    # RHEL / CentOS 7 (YUM)
     # ==========================================
-    - name: RHEL - Upgrade all packages
+    - name: YUM - Ensure yum-utils is installed (for reboot check)
+      yum:
+        name: yum-utils
+        state: present
+      when: ansible_pkg_mgr == "yum"
+
+    - name: YUM - Upgrade all packages
+      yum:
+        name: "*"
+        state: latest
+      when: ansible_pkg_mgr == "yum"
+
+    - name: YUM - Check if reboot is required
+      command: needs-restarting -r
+      register: yum_reboot
+      failed_when: false
+      changed_when: yum_reboot.rc == 1
+      when: ansible_pkg_mgr == "yum"
+
+    # ==========================================
+    # RHEL / Alma / Rocky 8 and newer (DNF)
+    # ==========================================
+    - name: DNF - Ensure dnf-utils is installed (for reboot check)
+      dnf:
+        name: dnf-utils
+        state: present
+      when: ansible_pkg_mgr == "dnf"
+
+    - name: DNF - Upgrade all packages
       dnf:
         name: "*"
         state: latest
-      when: ansible_os_family == "RedHat"
+      when: ansible_pkg_mgr == "dnf"
 
-    - name: RHEL - Check if reboot is required
-      command: dnf needs-restarting -r
-      register: rhel_reboot
+    - name: DNF - Check if reboot is required
+      command: needs-restarting -r
+      register: dnf_reboot
       failed_when: false
-      changed_when: rhel_reboot.rc == 1
-      when: ansible_os_family == "RedHat"
+      changed_when: dnf_reboot.rc == 1
+      when: ansible_pkg_mgr == "dnf"
 
     # ==========================================
     # Universal Reboot Handling
@@ -49,4 +77,5 @@
         post_reboot_delay: 30
       when: >
         (debian_reboot.stat.exists | default(false)) or 
-        (rhel_reboot.rc | default(0) == 1)
+        (yum_reboot.rc | default(0) == 1) or
+        (dnf_reboot.rc | default(0) == 1)
