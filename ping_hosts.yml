@@ -12,23 +12,12 @@
 
     - name: Display reachability results in a tabular format
       run_once: true
-      delegate_to: localhost
       ansible.builtin.debug:
         msg: |
-          %-25s | %-15s | %-15s
-          -----------------------------------------------------------------
+          {{ "%-25s | %-15s | %-20s" | format('Hostname', 'IP Address', 'Connection Status') }}
+          --------------------------------------------------------------------
           {% for host in ansible_play_hosts_all %}
           {% set ip = hostvars[host]['ansible_host'] | default(host) %}
           {% set status = 'OK (Reachable)' if hostvars[host]['ping_result']['rc'] == 0 else 'FAILED (Unreachable)' %}
-          %-25s | %-15s | %-15s
-          {% endfor %}
-      # The Jinja2 format filter applies the column spacing
-      vars:
-        msg: |
-          {{ "%-25s | %-15s | %-15s" | format('Hostname', 'IP Address', 'Connection Status') }}
-          -----------------------------------------------------------------
-          {% for host in ansible_play_hosts_all %}
-          {% set ip = hostvars[host]['ansible_host'] | default(host) %}
-          {% set status = 'OK (Reachable)' if hostvars[host]['ping_result']['rc'] == 0 else 'FAILED (Unreachable)' %}
-          {{ "%-25s | %-15s | %-15s" | format(host, ip, status) }}
+          {{ "%-25s | %-15s | %-20s" | format(host, ip, status) }}
           {% endfor %}
