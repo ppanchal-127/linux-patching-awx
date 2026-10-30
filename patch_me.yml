@@ -1,6 +1,6 @@
 ---
 - name: Multi-OS Patching and Reboot Cycle
-  hosts: webservers
+  hosts: all
   become: yes
   tasks:
 
