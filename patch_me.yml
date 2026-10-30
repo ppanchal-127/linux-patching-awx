@@ -5,6 +5,17 @@
   tasks:
 
     # ==========================================
+    # Pre-Flight Checks
+    # ==========================================
+    - name: Verify internet connectivity before patching
+      uri:
+        url: http://www.google.com
+        method: HEAD
+        timeout: 10
+      register: internet_check
+      # If this fails, Ansible stops execution for the host automatically.
+
+    # ==========================================
     # Debian / Ubuntu (APT)
     # ==========================================
     - name: APT - Update cache and upgrade all packages
@@ -13,7 +24,13 @@
         upgrade: dist
         autoremove: yes
         autoclean: yes
+      register: apt_upgrade_result
       when: ansible_pkg_mgr == "apt"
+
+    - name: APT - Print list of upgraded packages
+      debug:
+        msg: "Upgraded packages: {{ apt_upgrade_result.stdout_lines | default(['No updates applied']) }}"
+      when: ansible_pkg_mgr == "apt" and apt_upgrade_result.changed
 
     - name: APT - Check if reboot is required
       stat:
@@ -24,7 +41,7 @@
     # ==========================================
     # RHEL / CentOS 7 (YUM)
     # ==========================================
-    - name: YUM - Ensure yum-utils is installed (for reboot check)
+    - name: YUM - Ensure yum-utils is installed
       yum:
         name: yum-utils
         state: present
@@ -34,7 +51,13 @@
       yum:
         name: "*"
         state: latest
+      register: yum_upgrade_result
       when: ansible_pkg_mgr == "yum"
+
+    - name: YUM - Print list of upgraded packages
+      debug:
+        msg: "Upgraded packages: {{ yum_upgrade_result.changes.updated | default([]) | map(attribute='0') | list }}"
+      when: ansible_pkg_mgr == "yum" and yum_upgrade_result.changed
 
     - name: YUM - Check if reboot is required
       command: needs-restarting -r
@@ -46,7 +69,7 @@
     # ==========================================
     # RHEL / Alma / Rocky 8 and newer (DNF)
     # ==========================================
-    - name: DNF - Ensure dnf-utils is installed (for reboot check)
+    - name: DNF - Ensure dnf-utils is installed
       dnf:
         name: dnf-utils
         state: present
@@ -56,7 +79,13 @@
       dnf:
         name: "*"
         state: latest
+      register: dnf_upgrade_result
       when: ansible_pkg_mgr == "dnf"
+
+    - name: DNF - Print list of upgraded packages
+      debug:
+        msg: "Upgraded packages: {{ dnf_upgrade_result.changes.updated | default([]) | map(attribute='0') | list }}"
+      when: ansible_pkg_mgr == "dnf" and dnf_upgrade_result.changed
 
     - name: DNF - Check if reboot is required
       command: needs-restarting -r
